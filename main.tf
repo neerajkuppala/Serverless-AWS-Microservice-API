@@ -1,10 +1,7 @@
-# 1. THE STORAGE (S3 Bucket)
 resource "aws_s3_bucket" "my_bucket" {
   bucket         = "neeraj-serverless-project-2026" # Your new name!
   force_destroy  = true # This allows Terraform to delete the old non-empty bucket
 }
-
-# 2. THE SECURITY (IAM Role)
 resource "aws_iam_role" "lambda_role" {
   name = "microservice_lambda_role_v2"
   assume_role_policy = jsonencode({
@@ -16,8 +13,6 @@ resource "aws_iam_role" "lambda_role" {
     }]
   })
 }
-
-# Add this new block to give S3 permissions
 resource "aws_iam_role_policy" "s3_access" {
   name = "lambda_s3_policy"
   role = aws_iam_role.lambda_role.id
@@ -36,15 +31,11 @@ resource "aws_iam_role_policy" "s3_access" {
     ]
   })
 }
-
-# 3. THE ZIPPER (Archives your Python code)
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_file = "functions/api_handler.py"
   output_path = "lambda_function_payload.zip"
 }
-
-# 4. THE BRAIN (Lambda Function)
 resource "aws_lambda_function" "my_microservice" {
   filename      = "lambda_function_payload.zip"
   function_name = "NeerajMicroserviceAPI"
@@ -53,8 +44,6 @@ resource "aws_lambda_function" "my_microservice" {
   runtime       = "python3.11"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 }
-
-# 5. THE FRONT DOOR (API Gateway)
 resource "aws_apigatewayv2_api" "lambda_api" {
   name          = "NeerajMicroserviceGateway"
   protocol_type = "HTTP"
@@ -102,8 +91,6 @@ resource "aws_dynamodb_table" "project_db" {
 }
 resource "aws_iam_role_policy" "dynamo_policy" {
   name = "lambda_dynamo_policy"
-  
-  # CHANGE THIS LINE to match your actual role name
   role = aws_iam_role.lambda_role.id 
 
   policy = jsonencode({
@@ -123,8 +110,6 @@ resource "aws_cognito_user_pool_client" "client" {
   name         = "my-app-client"
   user_pool_id = aws_cognito_user_pool.pool.id # This links it to your 'pool'
 }
-
-# 2. THE AUTHORIZER (Now this will work!)
 resource "aws_apigatewayv2_authorizer" "auth" {
   api_id           = aws_apigatewayv2_api.lambda_api.id
   authorizer_type  = "JWT"
@@ -132,7 +117,6 @@ resource "aws_apigatewayv2_authorizer" "auth" {
   name             = "cognito-authorizer"
   
   jwt_configuration {
-    # This matches the 'client' resource we just created above
     audience = [aws_cognito_user_pool_client.client.id] 
     issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
   }
